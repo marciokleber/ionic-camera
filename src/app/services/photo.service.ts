@@ -1,8 +1,19 @@
 import { Injectable } from '@angular/core';
 import { Camera, CameraResultType, CameraSource, Photo } from '@capacitor/camera';
-import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Filesystem, Directory, FileInfo } from '@capacitor/filesystem';
 import { Preferences } from '@capacitor/preferences';
 import { UserPhoto } from '../model/UserPhoto';
+
+interface fileT {
+  ctime: number;
+  mtime: number;
+  name: string;
+  size: number;
+  type: string;
+  uri: string;
+}
+
+const REPO_CACHE: string = 'vistorias-img';
 
 @Injectable({
   providedIn: 'root'
@@ -10,6 +21,9 @@ import { UserPhoto } from '../model/UserPhoto';
 export class PhotoService {
 
   public photos: UserPhoto[] = [];
+
+  public REPO_CACHE: string = 'vistorias';
+
 
   constructor() { }
 
@@ -22,34 +36,36 @@ export class PhotoService {
       quality: 100
     });
 
-    console.log('capturedPhoto: ', capturedPhoto);
+    if (capturedPhoto) {
+      const savedImageFile = await this.savePicture(capturedPhoto);
+    }
+ 
 
-    const savedImageFile = await this.savePicture(capturedPhoto);
-    this.photos.unshift(savedImageFile);
   }
 
 
   private async savePicture(photo: Photo) {
-    // Convert photo to base64 format, required by Filesystem API to save
+
     const base64Data = await this.readAsBase64(photo);
   
-    // Write the file to the data directory
     const fileName = Date.now() + '.jpeg';
     const savedFile = await Filesystem.writeFile({
-      path: fileName,
+      path: `${REPO_CACHE}/${fileName}`,
       data: base64Data,
-      directory: Directory.Cache
+      recursive: true,
+      directory: Directory.Data
     });
 
-    console.log('savedFile: ', savedFile);
-  
-    // Use webPath to display the new image instead of base64 since it's
-    // already loaded into memory
-    return {
-      filepath: fileName,
-      webviewPath: savedFile.uri
-    };
+    this.loadFiles();
+
+    // console.log('Leitura da foto: ', ImageFile);
+    // this.photos.unshift(ImageFile);
+    
   }
+
+
+
+
 
 
   private async readAsBase64(photo: Photo) {
@@ -59,7 +75,7 @@ export class PhotoService {
   
     return await this.convertBlobToBase64(blob) as string;
   }
-  
+
   private convertBlobToBase64 = (blob: Blob) => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
@@ -69,5 +85,32 @@ export class PhotoService {
     reader.readAsDataURL(blob);
   });
 
+
+  public async loadFiles() {
+    Filesystem.readdir({
+      path: REPO_CACHE,
+      directory: Directory.Data
+    }).then(result => {
+      console.log('Result: ', result);
+      console.log('ResultFiles: ', result.files);
+      this.loadFileData(result.files);
+
+    }), async (error: any) => { console.log('Erro ao ler diretório: ', error) };
+
+  }
+
+  async loadFileData(fileNames: FileInfo[]){
+    for(let fileName of fileNames){
+      console.log('fileName: ', fileName);
+      const filepath = `${REPO_CACHE}/${fileName.name}`;
+      const readfile = await Filesystem.readFile({
+        path: filepath,
+        directory: Directory.Data
+      });
+      this.photos.push({filepath: filepath, webviewPath: `data:image/jpeg;base64,${readfile.data}`});
+      console.log('readfile: ', readfile.data);
+    } 
+    
+  }
 
 }
