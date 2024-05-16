@@ -4,14 +4,6 @@ import { Filesystem, Directory, FileInfo } from '@capacitor/filesystem';
 import { Preferences } from '@capacitor/preferences';
 import { UserPhoto } from '../model/UserPhoto';
 
-interface fileT {
-  ctime: number;
-  mtime: number;
-  name: string;
-  size: number;
-  type: string;
-  uri: string;
-}
 
 const REPO_CACHE: string = 'vistorias-img';
 
@@ -55,16 +47,23 @@ export class PhotoService {
       recursive: true,
       directory: Directory.Data
     });
-
     this.loadFiles();
 
     // console.log('Leitura da foto: ', ImageFile);
     // this.photos.unshift(ImageFile);
-    
   }
 
+  public async deletePicture(photo: UserPhoto) {
+    console.log('filename: ', photo.filename);
+    console.log('filepath: ', photo.filepath);
+    //console.log('webviewPath: ', photo.webviewPath);
+    await Filesystem.deleteFile({
 
-
+      path: `${photo.filepath}`,
+      directory: Directory.Data,
+    });
+    this.loadFiles();
+  }
 
 
 
@@ -91,8 +90,9 @@ export class PhotoService {
       path: REPO_CACHE,
       directory: Directory.Data
     }).then(result => {
-      console.log('Result: ', result);
-      console.log('ResultFiles: ', result.files);
+      this.photos = [];
+      //console.log('Result: ', result);
+      //.log('ResultFiles: ', result.files);
       this.loadFileData(result.files);
 
     }), async (error: any) => { console.log('Erro ao ler diretório: ', error) };
@@ -107,8 +107,8 @@ export class PhotoService {
         path: filepath,
         directory: Directory.Data
       });
-      this.photos.push({filepath: filepath, webviewPath: `data:image/jpeg;base64,${readfile.data}`});
-      console.log('readfile: ', readfile.data);
+      this.photos.push({filename: fileName.name , filepath: filepath, webviewPath: `data:image/jpeg;base64,${readfile.data}`});
+      //console.log('readfile: ', readfile.data);
     } 
     
   }
